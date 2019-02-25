@@ -47,7 +47,7 @@ def score_data(input_folder, output_folder, model_path, exp_config, do_postproce
         if not use_iter:
             checkpoint_path = utils.get_latest_model_checkpoint_path(model_path, 'model_best_dice.ckpt')
         else:
-            checkpoint_path = os.path.join(model_path, 'model.ckpt-%d' % use_iter)
+            checkpoint_path = os.path.join(model_path, 'model_best_dice.ckpt-%d' % use_iter)
 
         saver.restore(sess, checkpoint_path)
 

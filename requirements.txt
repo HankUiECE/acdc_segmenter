@@ -9,6 +9,5 @@ pandas==0.20.1
 scipy==0.19.1
 SimpleITK
 
--e git+https://github.com/scikit-image/scikit-image/#egg=scikit-image
 -e git+https://github.com/lmkoch/medpy/#egg=medpy
 
