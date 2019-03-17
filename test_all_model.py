@@ -7,11 +7,13 @@ import subprocess
 import shlex
 import io
 
-model_path = 'acdc_logdir/unet2D_bn_modified_wxent_bn_hanchao/' 
-best_lst = get_best_model_list(model_path, 'model_best_dice.ckpt')
+model_path = 'acdc_logdir/unet2D_bn_modified_wxent_bn_hanchao_weak_labels/' 
+#best_lst = get_best_model_list(model_path, 'model_best_dice.ckpt')
+best_lst = get_best_model_list(model_path, 'model_best_xent.ckpt')
+print(best_lst)
 max_dice = 0.0
 for number in best_lst:
-    command = 'python evaluate_patients.py acdc_logdir/unet2D_bn_modified_wxent_bn_hanchao/ -i ' + number
+    command = 'python evaluate_patients.py acdc_logdir/unet2D_bn_modified_wxent_bn_hanchao_weak_labels/ -i ' + number
     proc = Popen(shlex.split(command), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     for line in io.TextIOWrapper(proc.stderr, encoding="utf-8"):
         idx = line.find('Mean dice')

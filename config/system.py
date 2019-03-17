@@ -15,14 +15,15 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 at_biwi = False  # Are you running this code from the ETH Computer Vision Lab (Biwi)?
 project_root = '/home/hanchao/acdc_segmenter'
 data_root = '/home/hanchao/CMR/training'
-test_data_root = '/home/hanchao/CMR/testing'
+#test_data_root = '/home/hanchao/CMR/testing'
+test_data_root = '/home/hanchao/CMR/training'
 local_hostnames = ['hanchao-GT62VR-6RE']  # used to check if on cluster or not,
                                 # enter the name of your local machine
 
 ##################################################################################
 
 log_root = os.path.join(project_root, 'acdc_logdir')
-preproc_folder = os.path.join(project_root,'preproc_data')
+preproc_folder = os.path.join(project_root,'preproc_data_weak')
 
 def setup_GPU_environment():
 

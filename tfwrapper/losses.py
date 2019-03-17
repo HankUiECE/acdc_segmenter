@@ -107,3 +107,33 @@ def pixel_wise_cross_entropy_loss_weighted(logits, labels, class_weights):
 
     return loss
 
+def cross_entropy_loss_weighted_with_ignored_labels(logits, labels, class_weights):
+    '''
+    Weighted cross entropy loss, with a weight per class
+    :param logits: Network output before softmax
+    :param labels: Ground truth masks, not one-hot labels, label 255 is ignored
+    :param class_weights: A list of the weights for each class
+    :return: weighted cross entropy loss
+    '''
+
+    n_class = len(class_weights)
+
+    flat_logits = tf.reshape(logits, [-1, n_class])
+    flat_labels = tf.reshape(labels, [-1])
+    indices=tf.squeeze(tf.where(tf.not_equal(flat_labels,255)),1)
+    flat_labels = tf.cast(tf.gather(flat_labels,indices),tf.int32)
+    flat_logits = tf.gather(flat_logits,indices)
+    flat_labels = tf.one_hot(flat_labels, depth=n_class)
+
+    class_weights = tf.constant(np.array(class_weights, dtype=np.float32))
+
+    weight_map = tf.multiply(flat_labels, class_weights)
+    weight_map = tf.reduce_sum(weight_map, axis=1)
+
+    loss_map = tf.nn.softmax_cross_entropy_with_logits(logits=flat_logits, labels=flat_labels)
+    weighted_loss = tf.multiply(loss_map, weight_map)
+
+    loss = tf.reduce_mean(weighted_loss)
+
+    return loss
+

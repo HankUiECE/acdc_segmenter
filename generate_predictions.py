@@ -19,14 +19,14 @@ import config.system as sys_config
 import model as model
 import utils
 import image_utils
-
+from shutil import copyfile
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 
 # Set SGE_GPU environment variable if we are not on the local host
 sys_config.setup_GPU_environment()
 
 
-def score_data(input_folder, output_folder, model_path, exp_config, do_postprocessing=False, gt_exists=True, evaluate_all=False, use_iter=None):
+def score_data(input_folder, output_folder, model_path, exp_config, do_postprocessing=False, gt_exists=True, evaluate_all=False, use_iter=None, thres=1.0):
 
     nx, ny = exp_config.image_size[:2]
     batch_size = 1
@@ -95,7 +95,7 @@ def score_data(input_folder, output_folder, model_path, exp_config, do_postproce
                         for idx in range(img_4d.shape[3]):
 #img = img_dat[0].copy()
                             img = image_utils.normalise_image(img_4d[:,:,:,idx])
-                            frame = idx
+                            frame = idx + 1
                             if gt_exists:
                                 file_mask = file_base + '_gt.nii.gz'
                                 mask_dat = utils.load_nii(file_mask)
@@ -271,7 +271,9 @@ def score_data(input_folder, output_folder, model_path, exp_config, do_postproce
                                                               order=1,
                                                               preserve_range=True,
                                                               mode='constant')
+                                confi_map = np.max(prediction, axis=-1)
                                 prediction = np.argmax(prediction, axis=-1)
+                                prediction[confi_map<thres] = 255
                                 prediction_arr = np.asarray(prediction, dtype=np.uint8)
 
 
@@ -294,13 +296,13 @@ def score_data(input_folder, output_folder, model_path, exp_config, do_postproce
                                 raise ValueError('Frame doesnt correspond to ED or ES. frame = %d, ED = %d, ES = %d' %
                                                  (frame, ED_frame, ES_frame))
                             """
-                            frame_suffix = 'frame_' + repr(frame)
+                            frame_suffix = '_frame' + repr(frame).zfill(2)
                             # Save prediced mask
                             out_file_folder = os.path.join(output_folder, 'prediction', 'patient' + patient_id)
                             if not os.path.exists(out_file_folder):
                                 utils.makefolder(out_file_folder)
                             out_file_name = os.path.join(output_folder, 'prediction',
-                                                         'patient' + patient_id, frame_suffix + '.nii.gz')
+                                                         'patient' + patient_id, 'patient'+patient_id + frame_suffix + '.nii.gz')
                             if gt_exists:
                                 out_affine = mask_dat[1]
                                 out_header = mask_dat[2]
@@ -309,14 +311,19 @@ def score_data(input_folder, output_folder, model_path, exp_config, do_postproce
                                 out_header = img_dat[2]
 
                             logging.info('saving to: %s' % out_file_name)
-                            utils.save_nii(out_file_name, prediction_arr, out_affine, out_header)
+                            if frame == ED_frame or frame == ES_frame:
+                                dst = os.path.join(out_file_folder, 'patient' + patient_id + frame_suffix + '_gt.nii.gz')
+                                src = os.path.join(folder_path, 'patient' + patient_id + frame_suffix + '_gt.nii.gz')
+                                copyfile(src, dst)
+                            else:
+                                utils.save_nii(out_file_name, prediction_arr, out_affine, out_header)
 
                             # Save image data to the same folder for convenience
                             image_file_folder = os.path.join(output_folder, 'image', 'patient' + patient_id)
                             if not os.path.exists(image_file_folder):
                                 utils.makefolder(image_file_folder)
                             image_file_name = os.path.join(output_folder, 'image',
-                                                    'patient' + patient_id, frame_suffix + '.nii.gz')
+                                                    'patient' + patient_id, 'patient'+patient_id+frame_suffix + '.nii.gz')
                             logging.info('saving to: %s' % image_file_name)
                             utils.save_nii(image_file_name, img_4d[:,:,:,idx], out_affine, out_header)
 
@@ -349,11 +356,13 @@ if __name__ == '__main__':
     parser.add_argument("EXP_PATH", type=str, help="Path to experiment folder (assuming you are in the working directory)")
     parser.add_argument('-t', '--evaluate_test_set', action='store_true')
     parser.add_argument('-a', '--evaluate_all', action='store_true')
+    parser.add_argument('-th', '--thres', type=float, help='threshold greater than which is confident')
     parser.add_argument('-i', '--iter', type=int, help='which iteration to use')
     args = parser.parse_args()
 
     evaluate_test_set = args.evaluate_test_set
     evaluate_all = args.evaluate_all
+    thres = args.thres
 
     if evaluate_test_set and evaluate_all:
         raise ValueError('evaluate_all and evaluate_test_set cannot be chosen together!')
@@ -371,7 +380,7 @@ if __name__ == '__main__':
     if evaluate_test_set:
         logging.warning('EVALUATING ON TEST SET')
         input_path = sys_config.test_data_root
-        output_path = os.path.join(model_path, 'predictions_testset')
+        output_path = os.path.join(model_path, 'predictions_testset'+ str(int(thres * 100)))
     elif evaluate_all:
         logging.warning('EVALUATING ON ALL TRAINING DATA')
         input_path = sys_config.data_root
@@ -403,7 +412,8 @@ if __name__ == '__main__':
                                 do_postprocessing=True,
                                 gt_exists=(not evaluate_test_set),
                                 evaluate_all=evaluate_all,
-                                use_iter=use_iter)
+                                use_iter=use_iter,
+                                thres=thres)
 
 
     if not evaluate_test_set:

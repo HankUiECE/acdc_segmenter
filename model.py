@@ -26,8 +26,8 @@ def loss(logits, labels, nlabels, loss_type, weight_decay=0.0):
     :param weight_decay: The weight for the L2 regularisation of the network paramters
     :return: The total loss including weight decay, the loss without weight decay, only the weight decay 
     '''
-
-    labels = tf.one_hot(labels, depth=nlabels)
+    if loss_type != 'weighted_crossentropy_with_weak_labels': 
+        labels = tf.one_hot(labels, depth=nlabels)
 
     with tf.variable_scope('weights_norm'):
 
@@ -40,6 +40,9 @@ def loss(logits, labels, nlabels, loss_type, weight_decay=0.0):
 
     if loss_type == 'weighted_crossentropy':
         segmentation_loss = losses.pixel_wise_cross_entropy_loss_weighted(logits, labels,
+                                                                          class_weights=[0.1, 0.3, 0.3, 0.3])
+    elif loss_type == 'weighted_crossentropy_with_weak_labels':
+        segmentation_loss = losses.cross_entropy_loss_weighted_with_ignored_labels(logits, labels,
                                                                           class_weights=[0.1, 0.3, 0.3, 0.3])
     elif loss_type == 'crossentropy':
         segmentation_loss = losses.pixel_wise_cross_entropy_loss(logits, labels)

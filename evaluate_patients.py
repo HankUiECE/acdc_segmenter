@@ -48,7 +48,10 @@ def score_data(input_folder, output_folder, model_path, exp_config, do_postproce
             checkpoint_path = utils.get_latest_model_checkpoint_path(model_path, 'model_best_dice.ckpt')
         else:
             checkpoint_path = os.path.join(model_path, 'model_best_dice.ckpt-%d' % use_iter)
-
+            if not os.path.exists(checkpoint_path + '.meta'):
+                print(os.path.exists(checkpoint_path), checkpoint_path, 'wrong!')
+                exit()
+                checkpoint_path = os.path.join(model_path, 'model_best_xent.ckpt-%d' % use_iter)
         saver.restore(sess, checkpoint_path)
 
         init_iteration = int(checkpoint_path.split('/')[-1].split('-')[-1])
