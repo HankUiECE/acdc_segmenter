@@ -372,6 +372,7 @@ if __name__ == '__main__':
         logging.info('Using iteration: %d' % use_iter)
 
     base_path = sys_config.project_root
+    print(args.EXP_PATH)
     model_path = os.path.join(base_path, args.EXP_PATH)
     config_file = glob.glob(model_path + '/*py')[0]
     config_module = config_file.split('/')[-1].rstrip('.py')

@@ -50,27 +50,8 @@ def crop_or_pad_slice_to_size(slice, nx, ny):
 
     return slice_cropped
 
-def add_nearby_files(file, frame_num, file_list, num_slices, train_test):
-    num = int(frame_num) 
-    pred = file.strip(frame_num+'_gt.nii.gz') + str(num-1).zfill(2) + '.nii.gz'
-    pred_cand = file.strip(frame_num+'_gt.nii.gz') + str(num+2).zfill(2) + '.nii.gz'
-    succ = file.strip(frame_num+'_gt.nii.gz') + str(num+1).zfill(2) + '.nii.gz'
-    #print(os.path.exists(succ))
-    #file_list[train_test].append(succ)
-    if os.path.exists(pred):
-        file_list[train_test].append(pred)
-        img = nib.load(pred)
-        num_slices[train_test] += img.shape[2]
 
-    else:
-        file_list[train_test].append(pred_cand)
-        img = nib.load(pred_cand)
-        num_slices[train_test] += img.shape[2]
-    file_list[train_test].append(succ)
-    img = nib.load(succ)
-    num_slices[train_test] += img.shape[2]
-
-def prepare_data(input_folder, output_file, mode, size, target_resolution, split_test_train=True):
+def prepare_data(input_folder, output_file, mode, size, target_resolution, split_test_train=True, percent=1):
 
     '''
     Main function that prepares a dataset from the raw challenge data to an hdf5 dataset
@@ -114,28 +95,25 @@ def prepare_data(input_folder, output_file, mode, size, target_resolution, split
             for line in open(os.path.join(folder_path, 'Info.cfg')):
                 label, value = line.split(':')
                 infos[label] = value.rstrip('\n').lstrip(' ')
-            '''
-            patient_id = folder.lstrip('patient')
-            for file in glob.glob(os.path.join(folder_path, 'patient???_frame??_gt.nii.gz')):
 
-                file_list[train_test].append(file)
-                frame_num = file.strip('_gt.nii.gz')[-2:]
-                if train_test == 'train':
-                    add_nearby_files(file, frame_num, file_list, num_slices, train_test)
+            patient_id = folder.lstrip('patient')
+            '''
+            for file in glob.glob(os.path.join(folder_path, 'patient???_frame??.nii.gz')):
+                '''
+                #file_list[train_test].append(file)
 
                 # diag_list[train_test].append(diagnosis_to_int(infos['Group']))
-                #diag_list[train_test].append(diagnosis_dict[infos['Group']])
-                #weight_list[train_test].append(infos['Weight'])
-                #height_list[train_test].append(infos['Height'])
+                diag_list[train_test].append(diagnosis_dict[infos['Group']])
+                weight_list[train_test].append(infos['Weight'])
+                height_list[train_test].append(infos['Height'])
 
                 patient_id_list[train_test].append(patient_id)
 
-                #systole_frame = int(infos['ES'])
-                #diastole_frame = int(infos['ED'])
+                systole_frame = int(infos['ES'])
+                diastole_frame = int(infos['ED'])
 
-                #file_base = file.split('.')[0]
-                #frame = int(file_base.split('frame')[-1])
-                '''
+                file_base = file.split('.')[0]
+                frame = int(file_base.split('frame')[-1])
                 if frame == systole_frame:
                     cardiac_phase_list[train_test].append(1)  # 1 == systole
                 elif frame == diastole_frame:
@@ -143,9 +121,45 @@ def prepare_data(input_folder, output_file, mode, size, target_resolution, split
                 else:
                     cardiac_phase_list[train_test].append(0)  # 0 means other phase
                 '''
-                nifty_img = nib.load(file)
-                num_slices[train_test] += nifty_img.shape[2]
+                file_base = file.split('.')[0]
+                frame = int(file_base.split('frame')[-1])
 
+                if train_test == 'test':
+                    file_list[train_test].append(file)
+                    nifty_img = nib.load(file)
+                    num_slices[train_test] += nifty_img.shape[2]
+                elif train_test == 'train':
+                    if frame > 5:
+                        coin = np.random.random()
+                        if coin > percent:
+                            continue
+                    
+                    file_list[train_test].append(file)
+                    nifty_img = nib.load(file)
+                    num_slices[train_test] += nifty_img.shape[2]
+                '''
+                if frame == diastole_frame and train_test == 'train':
+                    file_list['train'].append(file)
+                    nifty_img = nib.load(file)
+                    num_slices['train'] += nifty_img.shape[2]
+                elif train_test == 'test':
+                    file_list['test'].append(file)
+                    nifty_img = nib.load(file)
+                    num_slices['test'] += nifty_img.shape[2]
+                '''
+                '''
+                if train_test == 'test':
+                    file_list[train_test].append(file)
+                    nifty_img = nib.load(file)
+                    num_slices[train_test] += nifty_img.shape[2]
+                elif train_test == 'train':
+                    if frame == diastole_frame:
+                        file_list[train_test].append(file)
+                        nifty_img = nib.load(file)
+                        num_slices[train_test] += nifty_img.shape[2]
+                '''
+    print('length of train: ' + str(len(file_list['train'])), 'length of test: ' + str(len(file_list['test'])))
+    #exit()
 
     # Write the small datasets
     for tt in ['test', 'train']:
@@ -192,15 +206,10 @@ def prepare_data(input_folder, output_file, mode, size, target_resolution, split
             logging.info('-----------------------------------------------------------')
             logging.info('Doing: %s' % file)
 
-            #file_base = file.split('.nii.gz')[0]
-            #file_mask = file_base + '_gt.nii.gz'
-            
-            file_mask = file
-            #print(file)
-            file_data = file.replace('/prediction/','/image/')
-            file_data = file_data.replace('_gt.nii.gz', '.nii.gz')
-            print('file data:', file_data)
-            img_dat = utils.load_nii(file_data)
+            file_base = file.split('.nii.gz')[0]
+            file_mask = file_base + '_gt.nii.gz'
+
+            img_dat = utils.load_nii(file)
             mask_dat = utils.load_nii(file_mask)
 
             img = img_dat[0].copy()
@@ -337,7 +346,7 @@ def _write_range_to_hdf5(hdf5_data, train_test, img_list, mask_list, counter_fro
 
     img_arr = np.asarray(img_list[train_test], dtype=np.float32)
     mask_arr = np.asarray(mask_list[train_test], dtype=np.uint8)
-    print(img_arr.shape, mask_arr.shape)
+
     hdf5_data['images_%s' % train_test][counter_from:counter_to, ...] = img_arr
     hdf5_data['masks_%s' % train_test][counter_from:counter_to, ...] = mask_arr
 
@@ -358,7 +367,8 @@ def load_and_maybe_process_data(input_folder,
                                 size,
                                 target_resolution,
                                 force_overwrite=False,
-                                split_test_train=True):
+                                split_test_train=True, 
+                                percent=1):
 
     '''
     This function is used to load and if necessary preprocesses the ACDC challenge data
@@ -389,7 +399,7 @@ def load_and_maybe_process_data(input_folder,
 
         logging.info('This configuration of mode, size and target resolution has not yet been preprocessed')
         logging.info('Preprocessing now!')
-        prepare_data(input_folder, data_file_path, mode, size, target_resolution, split_test_train=split_test_train)
+        prepare_data(input_folder, data_file_path, mode, size, target_resolution, split_test_train=split_test_train, percent=percent)
 
     elif os.path.getsize(data_file_path) < 10485760:  # If file is smaller than 10MB
 
@@ -407,8 +417,10 @@ def load_and_maybe_process_data(input_folder,
 
 if __name__ == '__main__':
 
-    input_folder = '/home/hanchao/acdc_segmenter/acdc_logdir/unet2D_bn_modified_wxent_bn_hanchao/predictions_testset80/prediction/'
-    preprocessing_folder = 'preproc_data_weak080'
+    #input_folder = '/home/hanchao/CMR/training'
+    input_folder = 'cv2warp_inv'
+    preprocessing_folder = 'preproc_data_cv2warp_both_inv'
+
     # d=load_and_maybe_process_data(input_folder, preprocessing_folder, '3D', (116,116,28), (2.5,2.5,5))
-    d=load_and_maybe_process_data(input_folder, preprocessing_folder, '2D', (212,212), (1.36719, 1.36719))
+    d=load_and_maybe_process_data(input_folder, preprocessing_folder, '2D', (212,212), (1.36719, 1.36719), percent=0.25)
 

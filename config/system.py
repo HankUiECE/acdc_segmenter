@@ -23,7 +23,7 @@ local_hostnames = ['hanchao-GT62VR-6RE']  # used to check if on cluster or not,
 ##################################################################################
 
 log_root = os.path.join(project_root, 'acdc_logdir')
-preproc_folder = os.path.join(project_root,'preproc_data_weak')
+preproc_folder = os.path.join(project_root,'preproc_data_weak095')
 
 def setup_GPU_environment():
 
