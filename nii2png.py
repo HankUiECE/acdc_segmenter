@@ -34,8 +34,8 @@ def to_png(img_4d, ED_frame, ES_frame, save_dir):
 
 
 def main():
-    data_path = '/home/hanchao/CMR/training/'
-    output_path = 'dataset'
+    data_path = '/mnt/interns/hanchao/training'
+    output_path = '/mnt/interns/hanchao/dataset_png'
     lst = listdir(data_path)
     for folder in lst:
         if folder == 'patient001.Info.cfg':
@@ -45,11 +45,11 @@ def main():
         nii_4d = os.path.join(folder_path, folder + '_4d.nii.gz')
         img_4d_dat = utils.load_nii(nii_4d)
         img_4d = img_4d_dat[0]
-        print(img_4d.shape)
-        exit()
+        #print(img_4d.shape)
+        #exit()
         print('working on:', folder)
         if np.max(img_4d) > 255:
-            print(np.max(img_4d))
+            #print(np.max(img_4d))
             img_4d = normalize(img_4d, ratio=0.995)
         save_dir = os.path.join(output_path, folder)
         if not os.path.exists(save_dir):
